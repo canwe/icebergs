@@ -29,7 +29,7 @@ X = []
 y = []
 
 for image in data_parsed:
-    data = image['band_2']
+    data = image['band_1']
     is_iceberg = image['is_iceberg']
     
     min_data = np.min(data)
@@ -116,13 +116,12 @@ BatchNormalization()
 model.add(Dense(512))
 model.add(Activation('relu'))
 BatchNormalization()
-#model.add(Dropout(0.2))  # !!!
+model.add(Dropout(0.2))  # !!!
 model.add(Dense(2))
 
 # model.add(Convolution2D(10,3,3, border_mode='same'))
 # model.add(GlobalAveragePooling2D())
-model.add(Activation('softmax'))  # !!!
-#model.add(Activation('sigmoid'))  # !!!
+model.add(Activation('softmax'))
 model.summary()
 model.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy'])
 
@@ -152,7 +151,7 @@ sub = pd.DataFrame({'Actual': actuals, 'Predictions': predictions})
 sub.to_csv('./output_cnn.csv', index=False)
 
 
-if score[1]<0.4:
+if score[1]<0.6:
     print "Test accuracy was insufficient, not going to evaluate actual unknown data."
     quit()
 print("Continuing with predictions for real data..")
@@ -165,7 +164,7 @@ X_unknown = []
 ids = []
 
 for image in data_parsed[:]:
-    data = image['band_2']
+    data = image['band_1']
     id = image['id']
 
     min_data = np.min(data)
@@ -179,12 +178,11 @@ X_unknown = np.array(X_unknown)
 X_unknown = X_unknown.reshape(X_unknown.shape[0], 75, 75, 1)
 
 # predict the likelihood of being an iceberg
-#predictions = model.predict_classes(X_unknown)
-predicts = model.predict(X_unknown,verbose=0)
-
-predictions = []
-for line in predicts:
-    predictions.append(line[1]) # take only probability that is_iceberg = True
+predictions = model.predict_classes(X_unknown)
+#print predictions
+#print type(predictions)
+#argmax
+predictions = list(predictions)
 
 sub = pd.DataFrame({'id': ids, 'is_iceberg': predictions})
 sub.to_csv('./output_unknown_cnn.csv', index=False)
