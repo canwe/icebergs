@@ -7,8 +7,6 @@ import pandas as pd
 from pandas.tools.plotting import scatter_matrix
 import matplotlib.pyplot as plt
 
-from sklearn.model_selection import train_test_split
-
 from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
@@ -21,61 +19,32 @@ from keras.preprocessing.image import ImageDataGenerator
 
 np.random.seed(25)
 
-""" load the training data """
-# list of dictionnaries with keys ('id', 'band_1', 'band_2', 'inc_angle', 'is_iceberg')
-data_parsed = json.loads(open('train.json').read())
-
-X = []
-y = []
-
-for image in data_parsed:
-    data = image['band_1']
-    is_iceberg = image['is_iceberg']
-
-    X.append(data)
-    y.append(is_iceberg)
-    #data = image['band_2']
-    #data = np.reshape(data, (75, 75)).T
-
-
-
-
-
-X_train, X_test, y_train, y_test = train_test_split(X[:100], y[:100], test_size=0.33)
-#(X_train, y_train), (X_test, y_test) = mnist.load_data()
-
-X_train = np.array(X_train)
-X_test = np.array(X_test)
-
-y_train = np.array(y_train)
-y_test = np.array(y_test)
-
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
 print("X_train original shape", X_train.shape)
 print("y_train original shape", y_train.shape)
 print("X_test original shape", X_test.shape)
 print("y_test original shape", y_test.shape)
 
+plt.imshow(X_train[0], cmap='gray')
+plt.title('Class '+ str(y_train[0]))
 
-
-
-X_train = X_train.reshape(X_train.shape[0], 75, 75, 1)
-X_test = X_test.reshape(X_test.shape[0], 75, 75, 1)
+X_train = X_train.reshape(X_train.shape[0], 28, 28, 1)
+X_test = X_test.reshape(X_test.shape[0], 28, 28, 1)
 
 X_train = X_train.astype('float32')
 X_test = X_test.astype('float32')
 
+X_train/=255
+X_test/=255
 
+X_train.shape
 
-print(X_train.shape)
-
-number_of_classes = 2
+number_of_classes = 10
 
 Y_train = np_utils.to_categorical(y_train, number_of_classes)
 Y_test = np_utils.to_categorical(y_test, number_of_classes)
 
-print(y_train[0], Y_train[0])
-
-
+y_train[0], Y_train[0]
 
 # Three steps to Convolution
 # 1. Convolution
@@ -89,7 +58,7 @@ print(y_train[0], Y_train[0])
 
 model = Sequential()
 
-model.add(Conv2D(32, (3, 3), input_shape=(75,75,1)))
+model.add(Conv2D(32, (3, 3), input_shape=(28,28,1)))
 model.add(Activation('relu'))
 BatchNormalization(axis=-1)
 model.add(Conv2D(32, (3, 3)))
@@ -112,13 +81,13 @@ model.add(Dense(512))
 model.add(Activation('relu'))
 BatchNormalization()
 model.add(Dropout(0.2))
-model.add(Dense(2))
+model.add(Dense(10))
 
 # model.add(Convolution2D(10,3,3, border_mode='same'))
 # model.add(GlobalAveragePooling2D())
 model.add(Activation('softmax'))
 model.summary()
-model.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer=Adam(), metrics=['accuracy'])
 
 gen = ImageDataGenerator(rotation_range=8, width_shift_range=0.08, shear_range=0.3,
                          height_shift_range=0.08, zoom_range=0.08)
@@ -130,8 +99,8 @@ test_generator = test_gen.flow(X_test, Y_test, batch_size=64)
 
 # model.fit(X_train, Y_train, batch_size=128, nb_epoch=1, validation_data=(X_test, Y_test))
 
-model.fit_generator(train_generator, steps_per_epoch=1074//64, epochs=5,
-                    validation_data=test_generator, validation_steps=530//64)
+model.fit_generator(train_generator, steps_per_epoch=60000//64, epochs=5,
+                    validation_data=test_generator, validation_steps=10000//64)
 
 score = model.evaluate(X_test, Y_test)
 print()
@@ -144,39 +113,6 @@ actuals = list(y_test)
 
 sub = pd.DataFrame({'Actual': actuals, 'Predictions': predictions})
 sub.to_csv('./output_cnn.csv', index=False)
-
-
-if score[1]<0.6:
-    print "Test accuracy was insufficient, not going to evaluate actual unknown data."
-    quit()
-print("Continuing with predictions for real data..")
-
-""" load the data with unknown answer """
-print("Loading the data with unknown answers..")
-data_parsed = json.loads(open('test.json').read())
-
-X_unknown = []
-ids = []
-
-for image in data_parsed[:100]:
-    data = image['band_1']
-    id = image['id']
-    X_unknown.append(data)
-    ids.append(id)
-X_unknown = np.array(X_unknown)
-X_unknown = X_unknown.reshape(X_unknown.shape[0], 75, 75, 1)
-
-# predict the likelihood of being an iceberg
-predictions = model.predict_classes(X_unknown)
-#print predictions
-#print type(predictions)
-#argmax
-predictions = list(predictions)
-
-sub = pd.DataFrame({'id': ids, 'is_iceberg': predictions})
-sub.to_csv('./output_unknown_cnn.csv', index=False)
-
-
 
 class MixIterator(object):
     def __init__(self, iters):
