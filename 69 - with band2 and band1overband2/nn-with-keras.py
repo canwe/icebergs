@@ -18,8 +18,6 @@ from keras.utils import np_utils
 from keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D, GlobalAveragePooling2D
 from keras.layers.advanced_activations import LeakyReLU
 from keras.preprocessing.image import ImageDataGenerator
-from keras.callbacks import ModelCheckpoint, Callback, EarlyStopping
-
 
 np.random.seed(25)
 
@@ -35,13 +33,11 @@ for image in data_parsed:
     is_iceberg = image['is_iceberg']
     
     data = image['band_1']
-#    for i in range(len(data)):
-#        data[i] = image['band_1'][i]/image['band_2'][i]
-
+    
     min_data = np.min(data)
     max_data = np.max(data)
     for i in range(len(data)):
-        data[i] = (data[i]-min_data)/(max_data-min_data)
+        data[i] = image['band_1'][i]/image['band_2'][i] #(data[i]-min_data)/(max_data-min_data)
     
     X1.append(data)
 
@@ -137,17 +133,8 @@ model.add(Dense(2))
 # model.add(GlobalAveragePooling2D())
 model.add(Activation('softmax'))  # !!!
 #model.add(Activation('sigmoid'))  # !!!
-
-# load weights
-model.load_weights("weights.best.hdf5")
-
 model.summary()
 model.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy'])
-
-# checkpoint
-filepath="weights.best.hdf5"
-checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
-callbacks_list = [checkpoint]
 
 gen = ImageDataGenerator(rotation_range=8, width_shift_range=0.08, shear_range=0.3,
                          height_shift_range=0.08, zoom_range=0.08)
@@ -159,8 +146,8 @@ test_generator = test_gen.flow(X_test, Y_test, batch_size=64)
 
 # model.fit(X_train, Y_train, batch_size=128, nb_epoch=1, validation_data=(X_test, Y_test))
 
-model.fit_generator(train_generator, steps_per_epoch=1074//64, epochs=20,
-                    validation_data=test_generator, validation_steps=530//64, callbacks=callbacks_list)
+model.fit_generator(train_generator, steps_per_epoch=1074//64, epochs=5,
+                    validation_data=test_generator, validation_steps=530//64)
 
 score = model.evaluate(X_test, Y_test)
 print()
@@ -175,7 +162,7 @@ sub = pd.DataFrame({'Actual': actuals, 'Predictions': predictions})
 sub.to_csv('./output_cnn.csv', index=False)
 
 
-if score[1]<0.7:
+if score[1]<0.6:
     print "Test accuracy was insufficient, not going to evaluate actual unknown data."
     quit()
 print("Continuing with predictions for real data..")

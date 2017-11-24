@@ -175,7 +175,7 @@ sub = pd.DataFrame({'Actual': actuals, 'Predictions': predictions})
 sub.to_csv('./output_cnn.csv', index=False)
 
 
-if score[1]<0.7:
+if score[1]<0.6:
     print "Test accuracy was insufficient, not going to evaluate actual unknown data."
     quit()
 print("Continuing with predictions for real data..")
